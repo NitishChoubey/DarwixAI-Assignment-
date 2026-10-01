@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sentinel KB — retrieval console</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --bg:#0f1c2e; --card:#173049; --line:#2a4a6a; --text:#e8eef5; --muted:#8aa0b8; --ok:#3dd68c; --mid:#f5c542; --bad:#ff6b6b; --acc:#4da3ff; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: "Segoe UI", system-ui, sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:18px 24px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
+  header a { color:var(--acc); text-decoration:none; }
+  h1 { font-size:18px; margin:0; font-weight:600; }
+  .wrap { max-width:1100px; margin:0 auto; padding:24px; }
+  .bar { display:flex; gap:8px; flex-wrap:wrap; }
+  input, select, button { font: inherit; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:#102438; color:var(--text); }
+  input { flex:1; min-width:240px; }
+  button { background:var(--acc); color:#071018; border:0; font-weight:600; cursor:pointer; }
+  .meta { margin:14px 0; color:var(--muted); font-size:13px; }
+  .hit { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin:12px 0; }
+  .hit h3 { margin:0 0 8px; font-size:15px; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; margin-right:6px; background:#102438; color:var(--muted); }
+  .high { color:var(--ok); } .medium { color:var(--mid); } .low { color:var(--bad); }
+  .cite { font-size:12px; color:var(--muted); margin-top:8px; font-family: ui-monospace, Consolas, monospace; }
+  p { line-height:1.5; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Q2 Knowledge Base — retrieval console</h1>
+  <nav><a href="/">Home</a> · <a href="/agent">Q1 Voice</a> · <a href="/kb/stats">Stats</a></nav>
+</header>
+<div class="wrap">
+  <div class="bar">
+    <input id="q" placeholder="Ask a product, policy, qualification, FAQ or objection question…" />
+    <select id="market"><option value="IN">India</option><option value="PH">Philippines</option><option value="ID">Indonesia</option></select>
+    <button id="go">Search</button>
+  </div>
+  <div class="meta" id="meta"></div>
+  <div id="hits"></div>
+</div>
+<script>
+const q = document.getElementById('q');
+const go = document.getElementById('go');
+async function search() {
+  const query = q.value.trim();
+  if (query.length < 2) return;
+  const market = document.getElementById('market').value;
+  const res = await fetch(`/kb/search?q=${encodeURIComponent(query)}&k=5&market=${market}`);
+  const data = await res.json();
+  document.getElementById('meta').innerHTML =
+    `mode <b>${data.mode}</b> · confidence <span class="${data.tier}">${data.confidence}</span> (${data.tier}) · grounded=${data.grounded} · expanded: ${data.expanded_query}`;
+  document.getElementById('hits').innerHTML = (data.hits || []).map(h => `
+    <article class="hit">
+      <h3>${h.rank}. ${h.title}</h3>
+      <div>
+        <span class="badge">${h.record_id}</span>
+        <span class="badge">${h.category}</span>
+        <span class="badge">score ${h.score}</span>
+        ${(h.products||[]).map(p => `<span class="badge">${p}</span>`).join('')}
+      </div>
+      <p>${h.content}</p>
+      <div class="cite">${h.citation}<br>${h.explanation}</div>
+    </article>`).join('') || '<p>No hits.</p>';
+}
+go.onclick = search;
+q.addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
+</script>
+</body>
+</html>
