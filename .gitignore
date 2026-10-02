@@ -21,5 +21,12 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Large/binary media produced at runtime (keep the curated samples under data/recordings committed)
-data/recordings/live_sessions/
+# Large/binary media produced at runtime
+data/recordings/*.wav
+data/recordings/*.mp3
+data/recordings/live_sessions/*.wav
+data/recordings/live_sessions/*.mp3
+
+# Duplicate per-call transcript dumps (keep curated q1_*.json / ph_*.json / id_*.json)
+data/transcripts/*_C-*.json
+data/transcripts/*_C-*.txt
