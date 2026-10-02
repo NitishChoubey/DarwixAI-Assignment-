@@ -57,9 +57,11 @@ def extract_slots_regex(text: str) -> Dict[str, str]:
     m = re.search(r"\b(\d+)\s*lakh", t, re.I)
     if m:
         out["sum_insured"] = m.group(0)
-    m = re.search(r"\b(callback|call me|tawag|hubungi).*?\b(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\b", t, re.I)
+    m = re.search(
+        r"\b((?:call me back|callback|call you back|tawag|hubungi).{0,40})", t, re.I
+    )
     if m:
-        out["callback_time"] = m.group(2)
+        out["callback_time"] = m.group(1).strip()
     # conflicting age vs DOB year
     dob = re.search(r"\b(?:born|dob|date of birth).*?(19|20)(\d{2})\b", t, re.I)
     if dob and "age" in out:
@@ -119,6 +121,13 @@ class GroundedVoiceAgent:
         sess = CallSession(call_id=sid, locale=self.locale.id, started_at=datetime.now().isoformat(timespec="seconds"))
         sess.turns.append(Turn("agent", self.locale.greeting))
         self.sessions[sid] = sess
+        try:
+            from q4_live_nudges.bridge import attach, feed
+            attach(sid, asr_language=self.locale.asr_language,
+                   vocabulary_prompt=self.locale.vocabulary_prompt)
+            feed(sid, "agent", self.locale.greeting)
+        except Exception:  # noqa: BLE001 — Q4 is optional if the package is missing
+            log.debug("Q4 live pipeline not attached", exc_info=True)
         return sess
 
     def get(self, call_id: str) -> CallSession:
@@ -262,6 +271,16 @@ class GroundedVoiceAgent:
 
         ask = self._next_question(sess)
         status = sess.qualification.get("status")
+        wants_cb = bool(sess.slots.get("callback_time")) or bool(
+            re.search(r"call me back|callback|send me a summary|pakicall|hubungi aku", user_text, re.I)
+        )
+        if wants_cb and sess.slots.get("name"):
+            when = sess.slots.get("callback_time") or "a time you prefer"
+            disc = " ".join(sess.qualification.get("disclaimers") or [])
+            reply = (
+                f"I will schedule a callback ({when}) and save a lead summary for a licensed advisor. {disc}"
+            )
+            return reply.strip(), cites, "schedule_callback"
         if status in {"Qualified", "Referred", "Not Eligible"} and not ask:
             plan = sess.qualification.get("plan") or "a suitable plan"
             reasons = "; ".join(sess.qualification.get("reasons") or [])
@@ -317,6 +336,16 @@ class GroundedVoiceAgent:
 
     def _pack(self, sess: CallSession, agent_turn: Turn, extra: Optional[Dict] = None) -> Dict[str, Any]:
         sess.turns.append(agent_turn)
+        nudges: List[dict] = []
+        try:
+            from q4_live_nudges.bridge import feed, snapshot
+            if len(sess.turns) >= 2 and sess.turns[-2].role == "customer":
+                feed(sess.call_id, "customer", sess.turns[-2].text)
+            feed(sess.call_id, "agent", agent_turn.text)
+            snap = snapshot(sess.call_id)
+            nudges = snap.get("nudges") or []
+        except Exception:  # noqa: BLE001
+            log.debug("Q4 feed skipped", exc_info=True)
         payload = {
             "call_id": sess.call_id,
             "reply": agent_turn.text,
@@ -327,6 +356,7 @@ class GroundedVoiceAgent:
             "slots": sess.slots,
             "qualification": sess.qualification,
             "lead_id": sess.lead_id,
+            "nudges": nudges[-5:],
         }
         if extra:
             payload.update(extra)
