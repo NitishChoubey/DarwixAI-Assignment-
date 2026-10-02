@@ -3,6 +3,9 @@
 *.pem
 *.key
 
+# Brief / internals not for the public repo
+DarwixAI ai assignment.pdf
+
 # Python
 __pycache__/
 *.py[cod]
