@@ -2,44 +2,52 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Sentinel KB — retrieval console</title>
+<title>Knowledge base · Aether Console</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-  :root { --bg:#0f1c2e; --card:#173049; --line:#2a4a6a; --text:#e8eef5; --muted:#8aa0b8; --ok:#3dd68c; --mid:#f5c542; --bad:#ff6b6b; --acc:#4da3ff; }
-  * { box-sizing: border-box; }
-  body { margin:0; font-family: "Segoe UI", system-ui, sans-serif; background:var(--bg); color:var(--text); }
-  header { padding:18px 24px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
-  header a { color:var(--acc); text-decoration:none; }
-  h1 { font-size:18px; margin:0; font-weight:600; }
-  .wrap { max-width:1100px; margin:0 auto; padding:24px; }
-  .bar { display:flex; gap:8px; flex-wrap:wrap; }
-  input, select, button { font: inherit; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:#102438; color:var(--text); }
-  input { flex:1; min-width:240px; }
-  button { background:var(--acc); color:#071018; border:0; font-weight:600; cursor:pointer; }
-  .meta { margin:14px 0; color:var(--muted); font-size:13px; }
-  .hit { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin:12px 0; }
-  .hit h3 { margin:0 0 8px; font-size:15px; }
-  .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; margin-right:6px; background:#102438; color:var(--muted); }
-  .high { color:var(--ok); } .medium { color:var(--mid); } .low { color:var(--bad); }
-  .cite { font-size:12px; color:var(--muted); margin-top:8px; font-family: ui-monospace, Consolas, monospace; }
-  p { line-height:1.5; }
-</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
-<header>
-  <h1>Q2 Knowledge Base — retrieval console</h1>
-  <nav><a href="/">Home</a> · <a href="/agent">Q1 Voice</a> · <a href="/kb/stats">Stats</a></nav>
+<header class="topbar">
+  <a class="brand" href="/">
+    <div class="mark">AE</div>
+    <div><h1>Knowledge base</h1><small>Retrieval console</small></div>
+  </a>
+  <nav class="nav">
+    <a href="/">Home</a>
+    <a href="/agent">Voice</a>
+    <a class="active" href="/kb">Knowledge</a>
+    <a href="/native">Locales</a>
+    <a href="/live">Live coach</a>
+  </nav>
 </header>
-<div class="wrap">
+<main class="page">
+  <div class="hero">
+    <p class="kicker">Citations · grounding · markets</p>
+    <h2>Search the production knowledge base.</h2>
+    <p class="lede">Every hit shows record id, source file, version and why it ranked. Out-of-scope questions should come back low-confidence so the voice agent refuses to guess.</p>
+  </div>
+  <div class="stats" id="stats"></div>
   <div class="bar">
     <input id="q" placeholder="Ask a product, policy, qualification, FAQ or objection question…" />
-    <select id="market"><option value="IN">India</option><option value="PH">Philippines</option><option value="ID">Indonesia</option></select>
+    <select id="market">
+      <option value="IN">India · Sentinel Health</option>
+      <option value="PH">Philippines · ShieldLife</option>
+      <option value="ID">Indonesia · MitraDana</option>
+    </select>
     <button id="go">Search</button>
   </div>
   <div class="meta" id="meta"></div>
   <div id="hits"></div>
-</div>
+</main>
 <script>
+fetch('/kb/stats').then(r => r.json()).then(d => {
+  document.getElementById('stats').innerHTML =
+    `<div class="stat"><b>${d.active_records ?? '—'}</b><span>active records</span></div>` +
+    `<div class="stat"><b>${d.superseded_records ?? 0}</b><span>superseded</span></div>` +
+    `<div class="stat"><b>${d.dense_index ? 'hybrid' : 'BM25'}</b><span>index mode</span></div>`;
+}).catch(() => {});
 const q = document.getElementById('q');
 const go = document.getElementById('go');
 async function search() {
@@ -54,14 +62,14 @@ async function search() {
     <article class="hit">
       <h3>${h.rank}. ${h.title}</h3>
       <div>
-        <span class="badge">${h.record_id}</span>
-        <span class="badge">${h.category}</span>
-        <span class="badge">score ${h.score}</span>
-        ${(h.products||[]).map(p => `<span class="badge">${p}</span>`).join('')}
+        <span class="pill">${h.record_id}</span>
+        <span class="pill">${h.category}</span>
+        <span class="pill">score ${h.score}</span>
+        ${(h.products||[]).map(p => `<span class="pill">${p}</span>`).join('')}
       </div>
       <p>${h.content}</p>
       <div class="cite">${h.citation}<br>${h.explanation}</div>
-    </article>`).join('') || '<p>No hits.</p>';
+    </article>`).join('') || '<p class="hint">No hits.</p>';
 }
 go.onclick = search;
 q.addEventListener('keydown', e => { if (e.key === 'Enter') search(); });

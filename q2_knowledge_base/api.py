@@ -63,4 +63,5 @@ def reload():
 
 @router.get("", response_class=HTMLResponse, include_in_schema=False)
 def ui():
-    return _UI.read_text(encoding="utf-8")
+    return HTMLResponse(_UI.read_text(encoding="utf-8"),
+                        headers={"Cache-Control": "no-store, no-cache, must-revalidate"})
